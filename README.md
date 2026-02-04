@@ -146,7 +146,7 @@ dw += (λ/m)·w
 ```
 
 ### Results
-
+```
 | Lambda (λ) | Test Accuracy | Weight Magnitude (||w||) |
 |------------|---------------|--------------------------|
 | 0.000      | 75.31%        | 1.5458                   |
@@ -154,7 +154,7 @@ dw += (λ/m)·w
 | 0.010      | 75.31%        | 1.5452                   |
 | 0.100      | 75.31%        | 1.5400                   |
 | 1.000      | 75.31%        | 1.4905                   |
-
+```
 Findings:
 - Test accuracy remained stable across all λ values (~75.3%)
 - Weight magnitude decreased with higher λ (1.55 → 1.49)
