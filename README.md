@@ -1,116 +1,167 @@
 # Heart Disease Risk Prediction Using Logistic Regression
 
-This project explores convolutional neural networks (CNNs) as architectural components with specific inductive biases, rather than black-box models. The assignment focuses on understanding how convolutional layers process spatial patterns in medical imaging data for heart disease prediction. By converting tabular clinical data into image-like representations, we investigate whether convolutional architectures can capture meaningful patterns compared to traditional approaches.
+This project implements logistic regression from scratch for heart disease prediction. The assignment focuses on understanding the mathematical foundations of binary classification by building a complete pipeline: data preprocessing, gradient descent optimization, decision boundary visualization, L2 regularization, and AWS SageMaker deployment. Rather than using black-box libraries, we implement core algorithms to understand how logistic regression learns patterns from clinical data.
 
 ## Dataset Description
 
 Dataset: Heart Disease UCI  
-Source: UCI Machine Learning Repository  
-Size: 270 patients  
+Source: [UCI Machine Learning Repository via Kaggle](https://www.kaggle.com/datasets/neurocipher/heartdisease)  
+Size: 270 patients (after cleaning)  
 Classes: 2 (Disease Presence: 44.44%, Disease Absence: 55.56%)
 
 ### Features
-The dataset includes 13 clinical features converted into 2D image representations:
-- Age: Patient age in years
-- Cholesterol: Serum cholesterol (mg/dl)
-- BP: Resting blood pressure (mm Hg)
-- Max_HR: Maximum heart rate achieved
-- ST_depression: ST depression induced by exercise
-- Number_of_vessels_fluro: Number of major vessels colored by fluoroscopy
-- Additional cardiac indicators (chest pain type, EKG results, etc.)
 
-### Data Transformation
-Clinical tabular data is reshaped into 2D image tensors (e.g., 4×4 or 5×3 grids) where spatial proximity represents feature relationships. This enables convolution to detect patterns across correlated clinical measurements.
+The dataset includes 13 clinical features, of which 6 were selected for model training:
 
-## Model Architectures
+- Age: Patient age in years (29-77)
+- Cholesterol: Serum cholesterol in mg/dL (126-564)
+- BP: Resting blood pressure in mm Hg (94-200)
+- Max_HR: Maximum heart rate achieved (71-202)
+- ST_depression: ST depression induced by exercise (0.0-6.2)
+- Number_of_vessels_fluro: Number of major vessels colored by fluoroscopy (0-3)
 
-### 1. Baseline Model (Non-Convolutional)
+Additional features in the dataset include chest pain type, EKG results, fasting blood sugar, exercise angina, slope of ST segment, and thallium stress test results.
 
+### Data Preprocessing
+
+- Train/Test Split: 70/30 stratified split (189 train, 81 test)
+- Normalization: Z-score standardization applied to all features
+- Target Encoding: Binary (1 = Disease Presence, 0 = Disease Absence)
+- Missing Values: None detected in the cleaned dataset
+
+
+
+## Model Implementation
+
+### Logistic Regression from Scratch
+
+Mathematical Foundation:
+
+Sigmoid Function:
 ```
-Flatten → Dense(64) → ReLU → Dropout(0.3) → Dense(32) → ReLU → Dense(1) → Sigmoid
+σ(z) = 1 / (1 + e^(-z))
+where z = w·x + b
 ```
 
-- Parameters: ~3,500
-- Architecture: Standard fully connected network
-- Training Accuracy: 77.78%
-- Test Accuracy: 71.60%
-
-Limitations: No spatial structure exploitation; treats all features independently.
-
-### 2. Convolutional Architecture
-
+Cost Function (Binary Cross-Entropy):
 ```
-Input (H×W×1) → Conv2D(16, 3×3) → ReLU → MaxPool(2×2) → 
-Conv2D(32, 3×3) → ReLU → GlobalAvgPool → Dense(16) → ReLU → Dense(1) → Sigmoid
+J(w,b) = -(1/m) Σ [y·log(ŷ) + (1-y)·log(1-ŷ)]
 ```
 
-Design Decisions:
-- Kernel Size: 3×3 (captures local feature interactions)
-- Filters: 16 → 32 (hierarchical feature learning)
-- Pooling: Max pooling for spatial invariance
-- Activation: ReLU for non-linearity
-- Parameters: ~1,800 (more efficient than baseline)
+Gradient Descent Updates:
+```
+w := w - α·(1/m)·X^T·(ŷ - y)
+b := b - α·(1/m)·Σ(ŷ - y)
+```
 
-Justification: Two convolutional layers allow detection of first-order (adjacent features) and second-order (feature combinations) patterns. Small kernels preserve fine-grained clinical relationships.
+Hyperparameters:
+- Learning Rate (α): 0.01
+- Iterations: 1000
+- Convergence: Final cost = 0.4407
 
-## Controlled Experiments
+Implementation Details:
+- Pure NumPy implementation (no scikit-learn for training)
+- Vectorized operations for efficiency
+- Cost tracking across iterations for convergence monitoring
 
-### Experiment: Effect of Kernel Size
 
-Fixed Variables: 2 conv layers, 16/32 filters, same pooling  
-Tested: 3×3 vs 5×5 vs 7×7 kernels
-
-| Kernel Size | Test Accuracy | Parameters | Training Time |
-|-------------|---------------|------------|---------------|
-| 3×3         | 73.5%         | 1,824      | 12s           |
-| 5×5         | 70.1%         | 4,096      | 18s           |
-| 7×7         | 68.3%         | 7,200      | 25s           |
-
-Observations:
-- Smaller kernels perform better on limited spatial data
-- Larger kernels overfit due to excessive parameters relative to input size
-- 3×3 provides optimal local context without overfitting
-
-Trade-offs: Performance vs complexity favors smaller kernels for low-resolution clinical "images."
-
----
 
 ## Results Summary
 
-| Model              | Accuracy | Precision | Recall | F1-Score |
-|--------------------|----------|-----------|--------|----------|
-| Baseline (Dense)   | 71.6%    | 72.4%     | 58.3%  | 64.6%    |
-| CNN (3×3 kernels)  | 73.5%    | 74.8%     | 61.1%  | 67.3%    |
-| CNN (5×5 kernels)  | 70.1%    | 71.2%     | 57.9%  | 63.9%    |
+### Model Performance (Without Regularization)
 
-The CNN with 3×3 kernels shows marginal improvement over the baseline while using fewer parameters.
+| Metric     | Training Set | Test Set |
+|---------|--------------|----------|
+| Accuracy   | 77.78%       | 71.60%   |
+| Precision  | 79.17%       | 72.41%   |
+| Recall     | 67.86%       | 58.33%   |
+| F1-Score   | 73.08%       | 64.62%   |
 
----
+Confusion Matrix (Test Set):
+- True Positives (TP): 21
+- False Positives (FP): 8
+- False Negatives (FN): 15
+- True Negatives (TN): 37
 
-## Interpretation and Architectural Reasoning
+Optimized Weights:
+```
+Age:              0.0659
+Cholesterol:      0.1797
+BP:               0.4177
+Max_HR:          -0.6337
+ST_depression:    0.6916
+Vessels:          0.7049
+Bias (b):        -0.1934
+```
 
-### Why CNNs (Marginally) Outperformed Baseline
+Interpretation: 
+- Negative weight for Max_HR indicates lower heart rates correlate with disease risk
+- Strong positive weights for ST_depression and vessels suggest these are powerful predictors
+- BP shows moderate positive correlation with risk
 
-Convolutional layers introduce spatial locality bias: they assume nearby features are more related than distant ones. In our reshaped clinical data (e.g., age and cholesterol placed adjacently), the CNN learns that certain feature pairs (BP-Max_HR, ST_depression-vessels) correlate spatially. This contrasts with dense layers that compute global interactions indiscriminately.
 
-### Inductive Bias of Convolution
+## Decision Boundary Visualization
 
-CNNs encode three biases:
-1. Locality: Features are processed in local neighborhoods
-2. Translation Equivariance: Patterns detected anywhere in the input
-3. Parameter Sharing: Same filters applied across spatial positions
+Three feature pairs were analyzed to understand model separability:
 
-For clinical tabular data reshaped as images, locality bias helps when feature ordering reflects meaningful groupings (e.g., cardiovascular metrics clustered together).
+### 1. Age vs Cholesterol
+Boundary Equation: `0.0659·Age + 0.1797·Cholesterol - 0.1934 = 0`
 
-### When Convolution is Inappropriate
+Observations:
+- Moderate linear separability
+- Higher cholesterol levels (>250 mg/dL) increase disease likelihood
+- Age shows weaker individual correlation but combines with cholesterol effectively
 
-CNNs excel with natural spatial structure (images, time series). They are poorly suited for:
-- Truly tabular data with no inherent ordering (e.g., demographics, categorical features)
-- Sparse high-dimensional data (text embeddings, recommendation systems)
-- Graph-structured data requiring relational reasoning
+### 2. BP vs Max_HR
+Boundary Equation: `0.4177·BP - 0.6337·Max_HR - 0.1934 = 0`
 
-In this project, CNNs only help marginally because the spatial transformation is artificial. For genuine medical images (X-rays, ECGs), CNNs would provide substantial advantages.
+Observations:
+- Strongest separation among the three pairs
+- Clear inverse relationship: low Max_HR at high BP indicates high risk
+- Decision boundary effectively separates classes with minimal overlap
 
+### 3. ST_depression vs Number_of_vessels_fluro
+Boundary Equation: `0.6916·ST_depression + 0.7049·Vessels - 0.1934 = 0`
+
+Observations:
+- Best linear separability
+- Both features are powerful predictors (highest weights in the model)
+- ST_depression > 1.5 combined with vessels ≥ 1 strongly indicates disease
+
+Conclusion: While no single feature pair perfectly separates classes, the model learns effective decision boundaries by combining weighted contributions from all six features.
+
+## Regularization Experiments
+
+### Methodology
+L2 regularization was applied to prevent overfitting by penalizing large weights:
+
+Regularized Cost:
+```
+J_reg(w,b) = J(w,b) + (λ/2m)·||w||²
+```
+
+Regularized Gradient:
+```
+dw += (λ/m)·w
+```
+
+### Results
+
+| Lambda (λ) | Test Accuracy | Weight Magnitude (||w||) |
+|------------|---------------|--------------------------|
+| 0.000      | 75.31%        | 1.5458                   |
+| 0.001      | 75.31%        | 1.5457                   |
+| 0.010      | 75.31%        | 1.5452                   |
+| 0.100      | 75.31%        | 1.5400                   |
+| 1.000      | 75.31%        | 1.4905                   |
+
+Findings:
+- Test accuracy remained stable across all λ values (~75.3%)
+- Weight magnitude decreased with higher λ (1.55 → 1.49)
+- λ = 1.0 provides best generalization potential due to weight shrinkage
+- No significant overfitting in baseline model (train: 77.78%, test: 75.31%)
+
+Optimal Choice: λ = 0.1 balances regularization strength without over-constraining the model.
 
 ## Deployment in SageMaker
 
@@ -132,8 +183,6 @@ The deployed endpoint was tested using a JSON request to verify correct inferenc
 
 ![](assets/test_endpoint.png)
 
----
-
 ### Sample Inference
 
 **Input**
@@ -154,6 +203,39 @@ The deployed endpoint was tested using a JSON request to verify correct inferenc
 ```
 
 The endpoint returns the predicted probability of heart disease, along with a binary classification and a human-readable risk interpretation.
+
+
+## Technical Stack
+
+- Python 3.x - Core programming language
+- NumPy - Matrix operations and gradient descent implementation
+- Pandas - Data manipulation and exploratory analysis
+- Matplotlib - Visualization of distributions and decision boundaries
+- Amazon SageMaker - Model deployment and endpoint management
+- Jupyter Notebook - Interactive development environment
+
+
+## How to Run
+
+### Local Execution
+```bash
+# Clone repository
+git clone https://github.com/mayerllyyo/heart-disease-lr.git
+cd heart-disease-lr
+
+# Install dependencies
+pip install numpy pandas matplotlib jupyter
+
+# Launch notebook
+jupyter notebook heart_disease_lr_analysis.ipynb
+```
+
+### AWS SageMaker Deployment
+1. Upload `heart_disease_lr_analysis.ipynb` to SageMaker Studio
+2. Execute cells 1-10 to train the model
+3. Run deployment cells (11-13) to create the endpoint
+4. Test with custom patient data in the final inference cell
+
 
 ## Author
 
